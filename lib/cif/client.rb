@@ -1,10 +1,11 @@
 # DESCRIPTION: queries collective-intelligence-framework sources
+require 'cif/client/version'
 require 'json'
 require 'net/http'
 require 'net/https'
-require 'digest/sha1'
-require 'zlib'
-require 'base64'
+#require 'digest/sha1'
+#require 'zlib'
+#require 'base64'
 require 'openssl'
 
 module CIF
@@ -36,7 +37,7 @@ module CIF
 			doc = response.body
 			data = JSON.parse(doc)
 			@response_code = data['status']
-			if data['data'] and data['data']
+			if data['data'] and data['data']['feed']
 				feed = data['data']['feed']
 			end
 			feed
