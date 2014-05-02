@@ -33,6 +33,7 @@ module CIF
 			http.verify_depth = 5
 			request = Net::HTTP::Get.new(url.path+"?"+url.query)
 			request.add_field("User-Agent", "Ruby/#{RUBY_VERSION} cif-client v#{CIF::Client::VERSION}")
+			request.add_field("Accept", "application/json")
 			response = http.request(request)
 			doc = response.body
 			data = JSON.parse(doc)
