@@ -9,86 +9,86 @@ require 'snort-rule'
 require 'configparser'
 
 def usage
-	puts "Usage: #{$0} [-h] [-c <config>] [-s <severity>] [-r <restriction>] [-n] [-x|-j|-y|-t|-o] [-d <delim>] <query> [<query> ...]"
-	puts "-h               prints this help"
-	puts "-c <config>      specifies a configuration file with the API key and host endpoint"
-	puts "-s <severity>    severity: low, medium, or high"
-	puts "-r <restriction> examples: need-to-know and private"
-	puts "-n               requests the server to not log the query"
-	puts "-x               outputs in XML"
-	puts "-j               outputs in JSON"
-	puts "-y               outputs in YAML"
-	puts "-o               outputs in SNORT formatted rules"
-	puts "-t               outputs in ASCII text (broken in 1.0.0)"
-	puts "-d <delimiter>   specifies the delimiter for text (default tab)"
-	puts "<query>          terms, usually domains, IPs, or CIDRs, that are being queried from the CIF"
-	exit
+  puts "Usage: #{$0} [-h] [-c <config>] [-s <severity>] [-r <restriction>] [-n] [-x|-j|-y|-t|-o] [-d <delim>] <query> [<query> ...]"
+  puts "-h               prints this help"
+  puts "-c <config>      specifies a configuration file with the API key and host endpoint"
+  puts "-s <severity>    severity: low, medium, or high"
+  puts "-r <restriction> examples: need-to-know and private"
+  puts "-n               requests the server to not log the query"
+  puts "-x               outputs in XML"
+  puts "-j               outputs in JSON"
+  puts "-y               outputs in YAML"
+  puts "-o               outputs in SNORT formatted rules"
+  puts "-t               outputs in ASCII text (broken in 1.0.0)"
+  puts "-d <delimiter>   specifies the delimiter for text (default tab)"
+  puts "<query>          terms, usually domains, IPs, or CIDRs, that are being queried from the CIF"
+  exit
 end
 
 def format_results(results,format,delim)
-	return unless results
-	case format
-	when 'xml'
-		results.to_xml
-	when 'json'
-		results.to_json
-	when 'yaml'
-		results.to_yaml
-	when 'text'
-		fields = nil
-		output = ""
-		results['entry'].each do |item|
-			unless fields
-				fields = item.keys 
-				output += fields.join(delim)+"\n"
-			end
-			sep = ""
-			fields.each do |field|
-				output += sep
-				output += item[field].chomp if item[field] and item[field].class == String
-				sep = delim
-			end
-			output += "\n"
-		end
-		output
-	when 'snort'
-		sid = 1
-		output = ""
-		results['entry'].each do |item|
-			begin
-				item = item['Incident']
-				next unless item['EventData']['Flow']['System']['Node']['Address']
-				portlist = item['EventData']['Flow']['System']['Service']['Portlist']
-				rule = Snort::Rule.new
-			
-				rule.dst = item['EventData']['Flow']['System']['Node']['Address']
-				rule.dport = portlist || 'any'
-				rule.opts['msg'] = "#{item['restriction']} - #{item['description']}" if item['restriction'] and item['description']
-				rule.opts['threshold'] = 'type limit,track by_src,count 1,seconds 3600'
-				rule.opts['sid'] = sid
-				sid += 1
-				rule.opts['reference'] = item['AlternativeID']['IncidentID']['content'] if item['AlternativeID']['IncidentID']['content']
-				output += rule.to_s + "\n"
-			rescue Exception => e
-				# do nothing
-			end
-		end
-		output
-	end
+  return unless results
+  case format
+  when 'xml'
+    results.to_xml
+  when 'json'
+    results.to_json
+  when 'yaml'
+    results.to_yaml
+  when 'text'
+    fields = nil
+    output = ""
+    results['entry'].each do |item|
+      unless fields
+        fields = item.keys 
+        output += fields.join(delim)+"\n"
+      end
+      sep = ""
+      fields.each do |field|
+        output += sep
+        output += item[field].chomp if item[field] and item[field].class == String
+        sep = delim
+      end
+      output += "\n"
+    end
+    output
+  when 'snort'
+    sid = 1
+    output = ""
+    results['entry'].each do |item|
+      begin
+        item = item['Incident']
+        next unless item['EventData']['Flow']['System']['Node']['Address']
+        portlist = item['EventData']['Flow']['System']['Service']['Portlist']
+        rule = Snort::Rule.new
+      
+        rule.dst = item['EventData']['Flow']['System']['Node']['Address']
+        rule.dport = portlist || 'any'
+        rule.options << Snort::RuleOption.new('msg', "#{item['restriction']} - #{item['description']}") if item['restriction'] and item['description']
+        rule.options << Snort::RuleOption.new('threshold', 'type limit,track by_src,count 1,seconds 3600')
+        rule.options << Snort::RuleOption.new('sid', sid)
+        rule.options << Snort::RuleOption.new('reference', item['AlternativeID']['IncidentID']['content']) if item['AlternativeID']['IncidentID']['content']
+        sid += 1
+        output += rule.to_s + "\n"
+      rescue Exception => e
+        # do nothing
+      end
+    end
+    output
+  end
 end
 
 opts = GetoptLong.new(
-	[ '--help', '-h', GetoptLong::NO_ARGUMENT ],
-	[ '--config', '-c', GetoptLong::REQUIRED_ARGUMENT ],
-	[ '--severity', '-s', GetoptLong::REQUIRED_ARGUMENT ],
-	[ '--restriction', '-r', GetoptLong::REQUIRED_ARGUMENT ],
-	[ '--nolog', '-n', GetoptLong::NO_ARGUMENT ],
-	[ '--xml', '-x', GetoptLong::NO_ARGUMENT ],
-	[ '--json', '-j', GetoptLong::NO_ARGUMENT ],
-	[ '--yaml', '-y', GetoptLong::NO_ARGUMENT ],
-	[ '--delim', '-d', GetoptLong::REQUIRED_ARGUMENT ],
-	[ '--text', '-t', GetoptLong::NO_ARGUMENT ],
-	[ '--snort', '-o', GetoptLong::NO_ARGUMENT ]
+  [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
+  [ '--config', '-c', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--severity', '-s', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--restriction', '-r', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--nolog', '-n', GetoptLong::NO_ARGUMENT ],
+  [ '--xml', '-x', GetoptLong::NO_ARGUMENT ],
+  [ '--json', '-j', GetoptLong::NO_ARGUMENT ],
+  [ '--yaml', '-y', GetoptLong::NO_ARGUMENT ],
+  [ '--delim', '-d', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--text', '-t', GetoptLong::NO_ARGUMENT ],
+  [ '--snort', '-o', GetoptLong::NO_ARGUMENT ]
 )
 config = "#{ENV['HOME']}/.cif"
 severity = nil
@@ -98,43 +98,43 @@ format = 'text'
 delim = "\t"
 
 opts.each do |opt, arg|
-	case opt
-	when '--help'
-		usage
-	when '--config'
-		config = arg
-	when '--severity'
-		severity = arg
-	when '--restriction'
-		restriction = arg
-	when '--nolog'
-		nolog = true
-	when '--xml'
-		format = 'xml'
-	when '--json'
-		format = 'json'
-	when '--yaml'
-		format = 'yaml'
-	when '--snort'
-		format = 'snort'
-	when '--delim'
-		delim = arg
-	when '--text'
-		format = 'text'
-	else
-		usage
-	end
+  case opt
+  when '--help'
+    usage
+  when '--config'
+    config = arg
+  when '--severity'
+    severity = arg
+  when '--restriction'
+    restriction = arg
+  when '--nolog'
+    nolog = true
+  when '--xml'
+    format = 'xml'
+  when '--json'
+    format = 'json'
+  when '--yaml'
+    format = 'yaml'
+  when '--snort'
+    format = 'snort'
+  when '--delim'
+    delim = arg
+  when '--text'
+    format = 'text'
+  else
+    usage
+  end
 end
 usage if ARGV.length == 0
 unless(File.exists?(config))
-	puts "cifcli requires a configuration file to work. It defaults to ~/.cif"
-	puts "please refer to the documentation for more detail"
-	exit
+  puts "cifcli requires a configuration file to work. It defaults to ~/.cif"
+  puts "please refer to the documentation for more detail"
+  exit
 end
 config = ConfigParser.new(config)
 host = config['client']['host']
 apikey = config['client']['apikey']
 client = CIF::Client.new(host,apikey,severity,restriction,nolog)
 ARGV.each do |query|
-	puts format_results(client.query(query),format,delim)
+  puts format_results(client.query(query),format,delim)
 end
