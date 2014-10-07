@@ -21,6 +21,8 @@ Or install it yourself as:
 
 ## Usage
 
+	require 'configparser'
+	require 'cif/client'
 	config = "#{ENV['HOME']}/.cif"
 	severity = nil
 	restriction = nil
